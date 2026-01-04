@@ -1,0 +1,8 @@
+node_modules
+credentials.json
+.max_token_limit
+.env
+.DS_Store
+dist/
+coverage/
+tsc_output/
