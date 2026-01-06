@@ -70,3 +70,22 @@ In `agent1.ts`, specific configurations are passed to the `createAgent` function
 *   **Benefits**:
     *   **Predictability**: Large Language Models (LLMs) output natural language by default, which can be messy. Structured output ensures the agent *always* returns machine-readable data (JSON).
     *   **Integration**: By forcing the output to have specific fields (e.g., `humour_response`, `trends` array with `query` and `search_volume`), we can easily parse the response in our code to display it in a UI, save it to a database, or log it cleanly without writing complex regex parsers to "guess" the data format.
+
+## Recent Updates (Jan 2026)
+
+### 1. Migration to LangGraph (`@langchain/langgraph`)
+The agent architecture has been upgraded from a standard LangChain agent to a **ReAct Agent** powered by **LangGraph**.
+*   **Why**: LangGraph provides superior control over the agent's internal state and execution flow, making it more robust for complex reasoning tasks.
+*   **Implementation**: We now use `createReactAgent` from `@langchain/langgraph/prebuilt`.
+
+### 2. Conversation Persistence (`MemorySaver`)
+We have integrated `MemorySaver` to enable **stateful conversations**.
+*   **What it does**: It acts as a checkpointer that saves the conversation history.
+*   **Benefit**: The agent can now remember the context of previous interactions.
+*   **Usage**: We pass a configurable `thread_id` (currently set to `"1"`) when invoking the agent. This allows you to resume a specific conversation thread at any time.
+
+### 3. Model Configuration Updates
+We have switched to using `initChatModel` for more granular control over the LLM's behavior.
+*   **Temperature (`0.5`)**: Set to a balanced value to allow for the requested "humorous" responses while maintaining factual accuracy for data fetching.
+*   **Max Tokens (`1024`)**: Increased token limit to ensure the agent has enough capacity to return full lists of trends and detailed commentary without being cut off.
+*   **Provider**: Explicitly configured for `ollama` running `llama3.2`.
