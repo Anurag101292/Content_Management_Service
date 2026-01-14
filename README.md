@@ -89,3 +89,67 @@ We have switched to using `initChatModel` for more granular control over the LLM
 *   **Temperature (`0.5`)**: Set to a balanced value to allow for the requested "humorous" responses while maintaining factual accuracy for data fetching.
 *   **Max Tokens (`1024`)**: Increased token limit to ensure the agent has enough capacity to return full lists of trends and detailed commentary without being cut off.
 *   **Provider**: Explicitly configured for `ollama` running `llama3.2`.
+
+## RAG Agent (Retrieval-Augmented Generation)
+
+We have implemented a **Retrieval-Augmented Generation (RAG)** pipeline in `ragagent1.ts`. This agent is designed to digest complex documents (like PDF reports) and answer user questions with high accuracy by referencing specific sections of the text.
+
+### How it Works (Architecture)
+
+1.  **Document Loading**:
+    *   We use `PDFLoader` to ingest the Nike 2025 10-K Report.
+    *   This converts the binary PDF into raw text documents.
+
+2.  **Text Splitting**:
+    *   The text is too large to feed into an LLM all at once.
+    *   We use `RecursiveCharacterTextSplitter` to break the document into smaller, manageable chunks (1000 characters with 200 character overlap). This preserves context between chunks.
+
+3.  **Embedding Generation**:
+    *   Each text chunk is converted into a **vector** (a mathematical representation of its meaning).
+    *   We use **Ollama** with the **`nomic-embed-text`** model. This is a dedicated, high-performance embedding model that is significantly faster and more accurate for retrieval tasks than using a generic LLM like Llama 3.2.
+
+4.  **Vector Store (Memory)**:
+    *   We use `MemoryVectorStore` to store these vectors in RAM.
+    *   This allows us to perform fast similarity searches to find text chunks that match a user's question.
+
+5.  **Retrieval (MMR)**:
+    *   We configured the retriever to use **Maximal Marginal Relevance (MMR)** instead of basic similarity.
+    *   **Config**: `searchType: "mmr"`, `k: 5`, `fetchK: 20`.
+    *   **Benefit**: It fetches a larger pool of relevant documents (20) and then selects the top 5 that are both *relevant* and *diverse*. This prevents the context from being flooded with redundant information.
+
+6.  **Generation (LLM)**:
+    *   Ideally, the retrieved context is passed to **Llama 3.2**.
+    *   A custom **System Prompt** instructs the agent to act as a research assistant and *only* answer using the provided context.
+
+### Memory Diagram
+
+```mermaid
+graph TD
+    A[Input PDF (Nike 10-K)] -->|PDFLoader| B[Raw Text Docs]
+    B -->|TextSplitter| C[Text Chunks (502 Total)]
+    
+    subgraph Vectorization Process
+    C -->|Ollama: nomic-embed-text| D[Vector Embeddings]
+    D -->|Store| E[(MemoryVectorStore)]
+    end
+    
+    subgraph Retrieval Loop
+    Q[User Question] -->|Embed Query| E
+    E -->|MMR Search| R[Top 5 Diverse Contexts]
+    end
+    
+    subgraph Generation
+    R -->|Context Injection| P[System Context Prompt]
+    P -->|ChatOllama: Llama 3.2| Ans[Final Answer]
+    end
+
+    style C fill:#f9f,stroke:#333
+    style E fill:#ccf,stroke:#333
+    style Ans fill:#bfb,stroke:#333
+```
+
+### Key Learnings & Optimizations
+
+*   **Embedding Model Matters**: We initially tried `llama3.2` for embeddings, but it was too slow and caused timeouts. Switching to `nomic-embed-text` reduced processing time from 10+ minutes to < 60 seconds.
+*   **Batch Processing**: To further prevent timeouts, we implemented a loop to process document chunks in batches of 10.
+*   **Search Type**: Switching to **MMR** helps when the answer might be hidden in a less "obvious" section of the text that simple similarity search might miss.

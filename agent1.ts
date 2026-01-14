@@ -94,7 +94,7 @@ async function main() {
 
     // Create the ReAct Agent
     const agent = createAgent({
-        model: new ChatOllama({ model: "llama3.2" }),
+        model: model,
         tools: [getTwitterTrends, getGoogleTrends],
         systemPrompt,
         responseFormat,
@@ -111,7 +111,7 @@ async function main() {
 
 
     console.log("--- Full Response Object ---");
-    // console.log(response); // Response from LangGraph is the state
+     console.log(response); // Response from LangGraph is the state
 
     const response1= await agent.invoke({
         messages: [{ role: "user", content: "Hello, for which country I asked for trending twitter?" }],
